@@ -1,5 +1,20 @@
+# Python
 venv/
 __pycache__/
-.env
-docs/
 *.pyc
+
+# Environment variables
+.env
+
+# Local documents (optional)
+docs/
+
+# ChromaDB vector database
+db/
+
+# Streamlit cache
+.streamlit/
+
+# Operating System files
+.DS_Store
+Thumbs.db
