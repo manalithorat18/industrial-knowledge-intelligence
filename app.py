@@ -26,8 +26,20 @@ st.title("🏭 Industrial Knowledge Intelligence")
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-st.sidebar.success(
-    "Multi-Document Retrieval Active"
+st.sidebar.success("Multi-Document Retrieval Active")
+
+if st.sidebar.button("🧹 Clear Conversation"):
+    st.session_state.chat_history = []
+    st.rerun()
+
+# -----------------------------
+# Sidebar Statistics
+# -----------------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("📊 Session")
+
+st.sidebar.write(
+    f"💬 Questions Asked : {len(st.session_state.chat_history)}"
 )
 
 st.markdown("""
@@ -55,13 +67,13 @@ if os.path.exists("db"):
 
     vector_db = load_vector_store()
 
-    st.sidebar.success(
-        "Existing Knowledge Base Loaded"
-    )
+    st.sidebar.success("✅ Existing Knowledge Base Loaded")
 
 else:
 
     vector_db = None
+
+    st.sidebar.warning("⚠ No Knowledge Base Found")
 
 # -----------------------------
 # File Upload
@@ -147,6 +159,7 @@ if uploaded_files:
     # -----------------------------
     col1, col2, col3 = st.columns(3)
 
+
     with col1:
         st.metric(
             "Documents",
@@ -164,6 +177,14 @@ if uploaded_files:
             "Chunks",
             len(all_chunks)
         )
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📊 Knowledge Base")
+
+    st.sidebar.write(f"📄 Documents : {len(uploaded_files)}")
+    st.sidebar.write(f"📑 Pages : {total_pages}")
+    st.sidebar.write(f"🧩 Chunks : {len(all_chunks)}")
+    st.sidebar.write(f"💬 Questions : {len(st.session_state.chat_history)}") 
 
     # -----------------------------
     # First Chunk Preview
@@ -277,16 +298,13 @@ if vector_db and query:
 
     if len(st.session_state.chat_history) > 0:
 
-        recent_questions = " ".join(
-            [
-                item["question"]
-                for item in st.session_state.chat_history[-3:]
-            ]
-        )
+        conversation_context = ""
 
-        retrieval_query = (
-            recent_questions + " " + query
-        )
+        for item in st.session_state.chat_history[-3:]:
+            conversation_context += item["question"] + " "
+            conversation_context += item["answer"] + " "
+
+        retrieval_query = conversation_context + query
 
     results = vector_db.similarity_search_with_score(
         retrieval_query,
@@ -352,13 +370,11 @@ Rules:
             prompt
         )
 
-        st.subheader(
-            "🤖 AI Answer"
-        )
+        with st.chat_message("user"):
+            st.write(query)
 
-        st.write(
-            response.text
-        )
+        with st.chat_message("assistant"):
+            st.write(response.text)
 
         st.session_state.chat_history.append(
             {
@@ -417,18 +433,24 @@ Rules:
                 f"📄 Document: {doc.metadata['source']}"
             )
 
-            confidence = max(
-                0,
-                round((1 / (1 + score)) * 100, 2)
-            )
+            if score < 0.25:
+                relevance = "🟢 High"
 
-            st.write(
-                f"🎯 Confidence: {confidence}%"
-            )
+            elif score < 0.5:
+                relevance = "🟡 Medium"
 
-            st.write(
-                doc.page_content
-            )
+            else:
+                 relevance = "🔴 Low"
+
+            st.write(f"Relevance: {relevance}")
+            st.write(f"Distance: {score:.3f}")
+
+            preview = doc.page_content
+
+            if len(preview) > 400:
+                preview = preview[:400] + "..."
+
+            st.write(preview)
 
             st.divider()
 
@@ -438,19 +460,29 @@ Rules:
 
 st.divider()
 
-st.header("📝 Chat History")
+st.header("📝 Previous Conversation")
 
-for item in reversed(
-    st.session_state.chat_history
-):
+for item in st.session_state.chat_history:
 
-    with st.expander(
-        item["question"]
-    ):
+    with st.chat_message("user"):
+        st.write(item["question"])
 
-        st.write(
-            item["answer"]
-        )
+    with st.chat_message("assistant"):
+        st.write(item["answer"])
+
+chat_text = ""
+
+for item in st.session_state.chat_history:
+
+    chat_text += f"User: {item['question']}\n"
+    chat_text += f"Assistant: {item['answer']}\n\n"
+
+st.download_button(
+    label="⬇ Download Conversation",
+    data=chat_text,
+    file_name="conversation.txt",
+    mime="text/plain"
+)
 
 # if st.button(
 #     "Generate Knowledge Graph"
@@ -462,19 +494,9 @@ for item in reversed(
 
 #                 st.divider()
 
-# -----------------------------
-# Placeholder Knowledge Graph
-# -----------------------------
+
+
 st.divider()
-
-st.header("📝 Chat History")
-
-for item in reversed(st.session_state.chat_history):
-
-    with st.expander(item["question"]):
-
-        st.write(item["answer"])
-
 
 if st.button("Generate Knowledge Graph"):
 
@@ -482,3 +504,14 @@ if st.button("Generate Knowledge Graph"):
         "Knowledge Graph feature coming in Week 2 🚀"
     )
 
+# if os.path.exists("db"):
+
+#     vector_db = load_vector_store()
+
+#     st.sidebar.success("✅ Existing Knowledge Base Loaded")
+
+# else:
+
+#     vector_db = None
+
+#     st.sidebar.warning("⚠ No Knowledge Base Found")
